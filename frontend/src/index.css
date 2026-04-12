@@ -1,0 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+@import "tailwindcss";
+
+@keyframes scan {
+  0%   { top: -4px; }
+  100% { top: 100%; }
+}
