@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
+import type { ForensicReport } from '../types/forensics';
 
 interface UploadZoneProps {
   onFileAccepted: (file: File) => void;
   isAnalyzing: boolean;
+  report?: ForensicReport | null;
 }
 
-export default function UploadZone({ onFileAccepted, isAnalyzing }: UploadZoneProps) {
+export default function UploadZone({ onFileAccepted, isAnalyzing, report }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -62,11 +64,29 @@ export default function UploadZone({ onFileAccepted, isAnalyzing }: UploadZonePr
 
       {preview ? (
         <div className="relative w-full h-full flex flex-col items-center justify-center p-4 gap-4">
-          <img
-            src={preview}
-            alt="Forensic target"
-            className="max-h-[340px] max-w-full rounded-xl object-contain ring-1 ring-cyan-700/40 shadow-xl"
-          />
+          <div className="relative inline-block">
+            <img
+              src={preview}
+              alt="Forensic target"
+              className="max-h-[340px] max-w-full rounded-xl object-contain ring-1 ring-cyan-700/40 shadow-xl relative"
+            />
+            {report?.anomalyCoordinates && (
+              <div 
+                className="absolute w-10 h-10 border-2 border-red-500/80 bg-red-500/20 pointer-events-none shadow-[0_0_12px_rgba(239,68,68,0.6)] animate-pulse transition-all duration-500"
+                style={{
+                  left: `calc(${report.anomalyCoordinates.x * 100}%)`,
+                  top: `calc(${report.anomalyCoordinates.y * 100}%)`,
+                  transform: 'translate(-50%, -50%)'
+                }}
+              >
+                <div className="absolute top-0 left-1/2 w-[1px] h-full bg-red-500/50 -translate-x-1/2" />
+                <div className="absolute top-1/2 left-0 w-full h-[1px] bg-red-500/50 -translate-y-1/2" />
+                <div className="absolute -top-5 left-1/2 text-[10px] whitespace-nowrap font-mono text-red-400 bg-slate-950 px-1 rounded -translate-x-1/2 border border-red-500/30 tracking-tight">
+                  [{report.anomalyCoordinates.x.toFixed(2)}, {report.anomalyCoordinates.y.toFixed(2)}]
+                </div>
+              </div>
+            )}
+          </div>
           <span className="text-xs font-mono text-cyan-400/70 bg-slate-900/80 px-3 py-1 rounded-full truncate max-w-xs">
             {fileName}
           </span>

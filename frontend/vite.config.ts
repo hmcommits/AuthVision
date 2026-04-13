@@ -12,6 +12,14 @@ export default defineConfig({
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp'
+    },
+    proxy: {
+      '/api/v1/forensics/stream': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        // @ts-expect-error adding custom streaming flag 
+        streaming: true
+      }
     }
   }
 })

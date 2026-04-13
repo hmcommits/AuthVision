@@ -100,9 +100,21 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
           </h2>
         </div>
         {report && (
-          <span className={`text-xs font-mono px-2.5 py-1 rounded-lg border ${cfg.badgeBg} ${cfg.colorClass}`}>
-            L1 · nanoCore
-          </span>
+          <div className="flex gap-2">
+            <span className={`text-xs font-mono px-2.5 py-1 rounded-lg border ${cfg.badgeBg} ${cfg.colorClass}`}>
+              L1 · nanoCore
+            </span>
+            {report.signatureStatus === 'Verified' && (
+              <span className="text-xs font-mono px-2.5 py-1 rounded-lg border bg-yellow-900/60 border-yellow-500/50 text-yellow-500 shadow-[0_0_12px_2px_rgba(234,179,8,0.2)]">
+                 ★ Google SynthID Verified
+              </span>
+            )}
+            {report.isVectorHit && (
+              <span className="text-xs font-mono px-2.5 py-1 rounded-lg border bg-pink-900/60 border-pink-500/50 text-pink-400 shadow-[0_0_12px_2px_rgba(236,72,153,0.2)] tracking-wide">
+                 ⚡ Instant Match (Viral Memory)
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -118,11 +130,36 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
             <p className={`text-3xl font-bold tracking-tight ${cfg.colorClass}`}>
               {cfg.label}
             </p>
-            <p className="text-sm text-slate-500 font-mono">
+            <p className="text-sm text-slate-500 font-mono flex items-center gap-2">
               Confidence: <span className="text-slate-300">{report.confidence}%</span>
               &nbsp;·&nbsp;
               {report.analyzedAt.toLocaleTimeString()}
+              {isAnalyzing && (
+                <span className="ml-2 flex items-center gap-1 text-cyan-400 animate-pulse">
+                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full" />
+                  Thinking...
+                </span>
+              )}
+              {report.currentModel && (
+                <span className={`ml-2 px-2 py-0.5 rounded text-xs border tracking-wider ${
+                  report.currentModel.includes('Gemini') ? 'border-blue-500/40 text-blue-400 bg-blue-900/40 shadow-[0_0_8px_rgba(59,130,246,0.2)]' :
+                  report.currentModel.includes('Claude') ? 'border-purple-500/40 text-purple-400 bg-purple-900/40 shadow-[0_0_8px_rgba(168,85,247,0.2)]' :
+                  'border-green-500/40 text-green-400 bg-green-900/40 shadow-[0_0_8px_rgba(34,197,94,0.2)]'
+                }`}>
+                  Audited by {report.currentModel}
+                </span>
+              )}
             </p>
+
+            {/* Streaming Reasoning Console */}
+            {report.explanationFragments && report.explanationFragments.length > 0 && (
+              <div className="mt-4 p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 max-h-40 overflow-y-auto font-mono text-xs text-slate-400">
+                {report.explanationFragments.map((frag, idx) => (
+                  <div key={idx} className="mb-1">{`> ${frag}`}</div>
+                ))}
+                {isAnalyzing && <div className="animate-pulse">_</div>}
+              </div>
+            )}
           </>
         ) : (
           <p className="text-2xl font-bold text-slate-600">Awaiting Input</p>

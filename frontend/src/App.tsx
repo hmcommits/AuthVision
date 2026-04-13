@@ -3,6 +3,7 @@ import UploadZone from './components/UploadZone';
 import VerdictDisplay from './components/VerdictDisplay';
 import { runFastScan } from './utils/nanoCore';
 import type { ForensicReport } from './types/forensics';
+import { VerdictStatus } from './types/forensics';
 
 function PulseIcon() {
   return (
@@ -21,9 +22,82 @@ export default function App() {
     setReport(null);
     setIsAnalyzing(true);
     try {
-      const result = await runFastScan(file);
-      setReport(result);
-    } finally {
+      const l1Result = await runFastScan(file);
+      setReport(l1Result);
+
+      // Generate a mock pHash based on file attributes
+      const mockHash = `phash_${file.size}_${file.name.substring(0, 5)}`;
+      const px = l1Result.anomalyCoordinates?.x || 0;
+      const py = l1Result.anomalyCoordinates?.y || 0;
+
+      const eventSource = new EventSource(`/api/v1/forensics/stream?pHash=${mockHash}&peakX=${px}&peakY=${py}`);
+      
+      eventSource.addEventListener('START', (msg) => {
+        setReport(prev => prev ? { ...prev, streamMessage: msg.data } : null);
+      });
+
+      eventSource.addEventListener('SIGNATURE_SHIELD_RESULT', (msg) => {
+        const data = JSON.parse(msg.data);
+        setReport(prev => prev ? { 
+            ...prev, 
+            streamMessage: 'Signature Scan Complete',
+            verdict: data.synthIdFound ? VerdictStatus.SIGNATURE_MATCH : prev.verdict,
+            signatureStatus: data.isSignatureVerified ? 'Verified' : (data.tamperMap?.length > 0 ? 'Tampered' : 'None')
+        } : null);
+      });
+
+      eventSource.addEventListener('MODEL_SWITCHED', (msg) => {
+        setReport(prev => prev ? { ...prev, currentModel: msg.data } : null);
+      });
+
+      eventSource.addEventListener('REASONING_CHUNK', (msg) => {
+        setReport(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                explanationFragments: [...prev.explanationFragments, msg.data]
+            };
+        });
+      });
+
+      eventSource.addEventListener('DONE', () => {
+          eventSource.close();
+          setIsAnalyzing(false);
+      });
+
+      eventSource.addEventListener('FAST_PASS', (msg) => {
+          const cache = JSON.parse(msg.data);
+          setReport(prev => prev ? { ...prev, verdict: cache.verdict, confidence: cache.confidence, streamMessage: 'Loaded from Edge Cache' } : null);
+          eventSource.close();
+          setIsAnalyzing(false);
+      });
+
+      eventSource.addEventListener('VECTOR_CACHE_HIT', (msg) => {
+          const cache = JSON.parse(msg.data);
+          setReport(prev => prev ? { 
+              ...prev, 
+              verdict: cache.verdict, 
+              confidence: cache.confidence, 
+              explanationFragments: cache.explanationFragments || [],
+              streamMessage: 'Match via Visual Vector Cache',
+              isVectorHit: true 
+          } : null);
+          eventSource.close();
+          setIsAnalyzing(false);
+      });
+
+      eventSource.addEventListener('ERROR', (msg) => {
+          setReport(prev => prev ? { ...prev, streamMessage: 'Stream Error: ' + msg.data } : null);
+          eventSource.close();
+          setIsAnalyzing(false);
+      });
+
+      eventSource.onerror = () => {
+          eventSource.close();
+          setIsAnalyzing(false);
+      };
+
+    } catch (e) {
       setIsAnalyzing(false);
     }
   }, []);
@@ -73,7 +147,7 @@ export default function App() {
             <p className="text-xs font-mono uppercase tracking-widest text-slate-500 mb-3">
               01 · Target Input
             </p>
-            <UploadZone onFileAccepted={handleFileAccepted} isAnalyzing={isAnalyzing} />
+            <UploadZone onFileAccepted={handleFileAccepted} isAnalyzing={isAnalyzing} report={report} />
           </section>
 
           {/* Right — Verdict */}
