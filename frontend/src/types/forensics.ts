@@ -29,7 +29,7 @@ export interface SignatureShieldData {
 
 export interface ForensicReport {
   verdict: VerdictStatus;
-  confidence: number; // overall 0–100
+  confidence: number;
   signals: SignalData;
   fileName: string;
   fileSize: number;
@@ -44,4 +44,6 @@ export interface ForensicReport {
   signatureStatus?: 'Verified' | 'None' | 'Tampered';
   currentModel?: string;
   isVectorHit?: boolean;
+  /** Set when Gemini returns an API-level error (quota, bad key, etc.) */
+  geminiError?: string;
 }

@@ -61,6 +61,11 @@ export default function App() {
         });
       });
 
+      // Surfaces Gemini API-level errors (bad key, quota) in the UI reasoning box
+      eventSource.addEventListener('GEMINI_ERROR', (msg) => {
+        setReport(prev => prev ? { ...prev, geminiError: msg.data } : null);
+      });
+
       eventSource.addEventListener('DONE', (msg) => {
           // DONE payload is now a JSON object with the aggregated verdict
           try {

@@ -57,23 +57,51 @@ public class DeepForensicService {
             StringBuilder fullReasoningText = new StringBuilder();
 
             client.sendAsync(request, HttpResponse.BodyHandlers.ofLines()).thenAccept(response -> {
+                List<String> rawLines = new ArrayList<>();
                 response.body().forEach(line -> {
+                    rawLines.add(line);
                     if (line.startsWith("data: ")) {
                         String jsonChunk = line.substring(6);
                         try {
                             JsonNode root = objectMapper.readTree(jsonChunk);
-                            JsonNode parts = root.path("candidates").get(0).path("content").path("parts");
-                            if (parts.isArray() && parts.size() > 0) {
-                                String token = parts.get(0).path("text").asText();
-                                if (!token.isBlank()) {
-                                    collectedFragments.add(token);
-                                    fullReasoningText.append(token);
-                                    emitter.send(SseEmitter.event().name("REASONING_CHUNK").data(token));
+
+                            // Detect Gemini API-level errors (quota exceeded, invalid key, etc.)
+                            if (root.has("error")) {
+                                String errMsg = root.path("error").path("message").asText("Gemini API error");
+                                int errCode = root.path("error").path("code").asInt(0);
+                                System.err.printf("[Gemini] API error %d: %s%n", errCode, errMsg);
+                                try { emitter.send(SseEmitter.event().name("GEMINI_ERROR").data(errMsg)); } catch (Exception ignored) {}
+                                return;
+                            }
+
+                            JsonNode candidates = root.path("candidates");
+                            if (candidates.isArray() && candidates.size() > 0) {
+                                JsonNode parts = candidates.get(0).path("content").path("parts");
+                                if (parts.isArray() && parts.size() > 0) {
+                                    String token = parts.get(0).path("text").asText();
+                                    if (!token.isBlank()) {
+                                        collectedFragments.add(token);
+                                        fullReasoningText.append(token);
+                                        try { emitter.send(SseEmitter.event().name("REASONING_CHUNK").data(token)); } catch (Exception ignored) {}
+                                    }
                                 }
                             }
-                        } catch (Exception e) {}
+                        } catch (Exception e) {
+                            // Log parse failures — never swallow silently
+                            System.err.printf("[Gemini] Failed to parse SSE chunk: %s | error: %s%n",
+                                jsonChunk.length() > 120 ? jsonChunk.substring(0, 120) : jsonChunk, e.getMessage());
+                        }
                     }
                 });
+
+                // If Gemini returned no tokens, surface a diagnostic fallback so the UI is not blank
+                if (collectedFragments.isEmpty()) {
+                    String fallback = "[Gemini audit returned no output — " + rawLines.size() + " raw SSE lines received. Check API key quota or model availability.] ";
+                    System.err.println("[Gemini] No reasoning tokens collected. " + fallback);
+                    collectedFragments.add(fallback);
+                    fullReasoningText.append(fallback);
+                    try { emitter.send(SseEmitter.event().name("REASONING_CHUNK").data(fallback)); } catch (Exception ignored) {}
+                }
 
                 // ── VerdictAggregator Rule ──────────────────────────────────────────
                 // If Gemini's reasoning text contains a synthetic confidence signal
@@ -119,7 +147,9 @@ public class DeepForensicService {
             return CompletableFuture.completedFuture(null);
 
         } catch (Exception e) {
+            System.err.printf("[DeepForensicService] conductDeepAudit threw: %s%n", e.getMessage());
             try {
+                emitter.send(SseEmitter.event().name("REASONING_CHUNK").data("[Audit engine error: " + e.getMessage() + "]"));
                 emitter.send(SseEmitter.event().name("ERROR").data("Live Audit Failed: " + e.getMessage()));
                 emitter.complete();
             } catch (Exception emitEx) {}
