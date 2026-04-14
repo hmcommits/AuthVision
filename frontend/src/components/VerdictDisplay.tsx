@@ -90,19 +90,21 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
 
 
   useEffect(() => {
-    if (!report?.explanationFragments || report.explanationFragments.length === 0) {
+    // Drive the typewriter from reasoningStream (Gemini L2 semantic text only)
+    const fragments = report?.reasoningStream;
+    if (!fragments || fragments.length === 0) {
       setDisplayedText('');
       return;
     }
-    
-    // For pure Vector cache hits or static text, bypass smoothing
-    if (!isAnalyzing || report.isVectorHit) {
-      setDisplayedText(report.explanationFragments.join(' '));
+
+    // For vector cache hits or when streaming is done, show full text immediately
+    if (!isAnalyzing || report?.isVectorHit) {
+      setDisplayedText(fragments.join(''));
       return;
     }
 
-    const fullText = report.explanationFragments.join(' ');
-    
+    const fullText = fragments.join('');
+
     if (fullText.length <= displayedText.length) {
       if (fullText.length < displayedText.length) setDisplayedText(fullText);
       return;
@@ -118,7 +120,7 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
     }, 15);
 
     return () => clearInterval(interval);
-  }, [report?.explanationFragments, isAnalyzing, report?.isVectorHit, displayedText.length]);
+  }, [report?.reasoningStream, isAnalyzing, report?.isVectorHit, displayedText.length]);
 
   // Idle state: no report and not currently analyzing — render as conditional JSX
   if (!report && !isAnalyzing) {
@@ -204,12 +206,13 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
               )}
             </p>
 
-            {/* Streaming Reasoning Console — visible during and after analysis */}
-            {displayedText.length > 0 && (
-              <div className="mt-4 p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 max-h-40 overflow-y-auto font-mono text-xs text-slate-400 whitespace-pre-wrap">
-                <div className="mb-1">{`> ${displayedText}`}
-                  {isAnalyzing && <span className="animate-pulse inline-block ml-1 text-cyan-200">_</span>}
-                </div>
+            {/* Live streaming console — shows Gemini tokens as they arrive */}
+            {isAnalyzing && displayedText.length > 0 && (
+              <div className="mt-3 p-3 rounded-lg bg-slate-900/60 border border-slate-800/80 max-h-32 overflow-y-auto">
+                <p className="font-sans text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {displayedText}
+                  <span className="animate-pulse inline-block ml-0.5 text-cyan-300">|</span>
+                </p>
               </div>
             )}
           </>
@@ -260,7 +263,7 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
         </div>
       )}
 
-      {/* ── AI Reasoning Console ── always visible once text has arrived ── */}
+      {/* ── Gemini Reasoning Console ── clean prose, visible after analysis completes ── */}
       {report && !isAnalyzing && displayedText.length > 0 && (
         <div className="flex flex-col gap-2">
           <h3 className="text-xs uppercase tracking-widest font-mono text-slate-500 flex items-center gap-2">
@@ -269,13 +272,30 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
           </h3>
           <div
             id="gemini-reasoning-console"
-            className="p-3 rounded-xl bg-slate-900/70 border border-slate-700/60 max-h-52 overflow-y-auto
-                       font-mono text-xs leading-relaxed whitespace-pre-wrap"
+            className="p-4 rounded-xl bg-slate-900/70 border border-slate-700/60 max-h-52 overflow-y-auto"
           >
-            <span className="text-cyan-400 select-none">&gt; </span>
-            <span className="text-slate-300">{displayedText}</span>
+            {/* Render as clean prose paragraphs, not a log format */}
+            {displayedText.split('\n').filter(Boolean).map((para, i) => (
+              <p key={i} className="text-sm text-slate-200 leading-relaxed mb-2 last:mb-0 font-sans">
+                {para}
+              </p>
+            ))}
           </div>
         </div>
+      )}
+
+      {/* L1 NanoCore Signal Log — collapsed technical detail */}
+      {report && !isAnalyzing && report.explanationFragments.length > 0 && (
+        <details className="group">
+          <summary className="text-xs font-mono text-slate-600 hover:text-slate-400 cursor-pointer select-none">
+            ▸ NanoCore L1 log ({report.explanationFragments.length} entries)
+          </summary>
+          <div className="mt-1 pl-3 border-l border-slate-800 flex flex-col gap-0.5">
+            {report.explanationFragments.map((entry, i) => (
+              <span key={i} className="text-xs font-mono text-slate-600">{entry}</span>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   );

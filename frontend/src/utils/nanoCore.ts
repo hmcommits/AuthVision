@@ -126,7 +126,10 @@ export async function runFastScan(file: File): Promise<ForensicReport> {
     fileSize:    file.size,
     analyzedAt:  new Date(),
     layerVersion: 'nanoCore-L1-v1.0-WASM',
+    // L1 NanoCore signal log — NOT Gemini prose
     explanationFragments: ['NanoCore L1 fast scan complete', `Spectral Peak detected at (${normX}, ${normY})`],
+    // Layer 2 Gemini reasoning tokens — populated later via SSE
+    reasoningStream: [],
     anomalyCoordinates: { x: normX, y: normY },
   };
 }

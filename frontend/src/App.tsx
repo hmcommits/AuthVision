@@ -55,7 +55,8 @@ export default function App() {
             if (!prev) return null;
             return {
                 ...prev,
-                explanationFragments: [...prev.explanationFragments, msg.data]
+                // Append Gemini tokens only to reasoningStream — never to explanationFragments
+                reasoningStream: [...prev.reasoningStream, msg.data]
             };
         });
       });
@@ -91,7 +92,8 @@ export default function App() {
               ...prev, 
               verdict: cache.verdict, 
               confidence: cache.confidence, 
-              explanationFragments: cache.explanationFragments || [],
+              // Cache hit: explanationFragments stays as L1 log; reasoning goes into reasoningStream
+              reasoningStream: cache.explanationFragments || [],
               streamMessage: 'Match via Visual Vector Cache',
               isVectorHit: true 
           } : null);

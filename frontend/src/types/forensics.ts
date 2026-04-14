@@ -35,7 +35,10 @@ export interface ForensicReport {
   fileSize: number;
   analyzedAt: Date;
   layerVersion: string;
+  /** Layer 1 NanoCore signal log entries (not AI prose) */
   explanationFragments: string[];
+  /** Layer 2 Gemini semantic reasoning text — tokens appended as they stream in */
+  reasoningStream: string[];
   anomalyCoordinates: { x: number; y: number } | null;
   streamMessage?: string;
   signatureStatus?: 'Verified' | 'None' | 'Tampered';
