@@ -204,8 +204,8 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
               )}
             </p>
 
-            {/* Streaming Reasoning Console */}
-            {(displayedText.length > 0 || (report.explanationFragments && report.explanationFragments.length > 0)) && (
+            {/* Streaming Reasoning Console — visible during and after analysis */}
+            {displayedText.length > 0 && (
               <div className="mt-4 p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 max-h-40 overflow-y-auto font-mono text-xs text-slate-400 whitespace-pre-wrap">
                 <div className="mb-1">{`> ${displayedText}`}
                   {isAnalyzing && <span className="animate-pulse inline-block ml-1 text-cyan-200">_</span>}
@@ -257,6 +257,24 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
       {report && !isAnalyzing && (
         <div className="text-xs font-mono text-slate-600 pt-2 border-t border-slate-800">
           {report.fileName} · {(report.fileSize / 1024).toFixed(1)} KB · {report.layerVersion}
+        </div>
+      )}
+
+      {/* ── AI Reasoning Console ── always visible once text has arrived ── */}
+      {report && !isAnalyzing && displayedText.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xs uppercase tracking-widest font-mono text-slate-500 flex items-center gap-2">
+            <span className={`w-1.5 h-1.5 rounded-full ${cfg?.dot || 'bg-slate-400'}`} />
+            Gemini Reasoning
+          </h3>
+          <div
+            id="gemini-reasoning-console"
+            className="p-3 rounded-xl bg-slate-900/70 border border-slate-700/60 max-h-52 overflow-y-auto
+                       font-mono text-xs leading-relaxed whitespace-pre-wrap"
+          >
+            <span className="text-cyan-400 select-none">&gt; </span>
+            <span className="text-slate-300">{displayedText}</span>
+          </div>
         </div>
       )}
     </div>

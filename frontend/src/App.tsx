@@ -60,7 +60,20 @@ export default function App() {
         });
       });
 
-      eventSource.addEventListener('DONE', () => {
+      eventSource.addEventListener('DONE', (msg) => {
+          // DONE payload is now a JSON object with the aggregated verdict
+          try {
+            const payload = JSON.parse(msg.data);
+            if (payload.verdict && payload.confidence) {
+              setReport(prev => prev ? {
+                ...prev,
+                verdict: payload.verdict as VerdictStatus,
+                confidence: payload.confidence,
+              } : null);
+            }
+          } catch {
+            // Older plain-text DONE events — no-op
+          }
           eventSource.close();
           setIsAnalyzing(false);
       });

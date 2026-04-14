@@ -103,6 +103,9 @@ export async function runFastScan(file: File): Promise<ForensicReport> {
     verdict = VerdictStatus.SUSPICIOUS;
   } else if (spectralAnomaly <= 0.25) {
     verdict = VerdictStatus.VERIFIED;
+  } else if (spectralAnomaly > 0.30) {
+    // > 30% combined anomaly score → High Suspicion (lowered threshold per spec)
+    verdict = VerdictStatus.SUSPICIOUS;
   } else {
     verdict = VerdictStatus.UNVERIFIED;
   }
