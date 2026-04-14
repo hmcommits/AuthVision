@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import type { ForensicReport } from '../types/forensics';
 import { VerdictStatus } from '../types/forensics';
 
@@ -80,28 +81,74 @@ function SkeletonBar() {
 }
 
 export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayProps) {
-  const cfg = report ? verdictConfig[report.verdict] : verdictConfig[VerdictStatus.UNVERIFIED];
+  // All hooks must be declared unconditionally at the top — Rules of Hooks
+  const [displayedText, setDisplayedText] = useState('');
+
+  // Safe configuration mapping with optional chaining to prevent TypeError
+  const cfg = verdictConfig[report?.verdict || VerdictStatus.UNVERIFIED] ?? verdictConfig[VerdictStatus.UNVERIFIED];
+
+
+
+  useEffect(() => {
+    if (!report?.explanationFragments || report.explanationFragments.length === 0) {
+      setDisplayedText('');
+      return;
+    }
+    
+    // For pure Vector cache hits or static text, bypass smoothing
+    if (!isAnalyzing || report.isVectorHit) {
+      setDisplayedText(report.explanationFragments.join(' '));
+      return;
+    }
+
+    const fullText = report.explanationFragments.join(' ');
+    
+    if (fullText.length <= displayedText.length) {
+      if (fullText.length < displayedText.length) setDisplayedText(fullText);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setDisplayedText(prev => {
+        if (prev.length < fullText.length) {
+          return prev + fullText.charAt(prev.length);
+        }
+        return prev;
+      });
+    }, 15);
+
+    return () => clearInterval(interval);
+  }, [report?.explanationFragments, isAnalyzing, report?.isVectorHit, displayedText.length]);
+
+  // Idle state: no report and not currently analyzing — render as conditional JSX
+  if (!report && !isAnalyzing) {
+    return (
+      <div id="verdict-panel" className="relative rounded-2xl border border-slate-500/40 backdrop-blur-md bg-slate-800/40 p-6 flex flex-col items-center justify-center min-h-[420px]">
+        <div className="animate-pulse text-slate-400 font-mono tracking-widest uppercase">Analyzing Signal...</div>
+      </div>
+    );
+  }
 
   return (
     <div
       id="verdict-panel"
       className={`
         relative rounded-2xl border backdrop-blur-md transition-all duration-500
-        ${cfg.borderClass} ${cfg.glowClass} ${cfg.bgClass}
+        ${cfg?.borderClass || 'border-slate-500/40'} ${cfg?.glowClass || ''} ${cfg?.bgClass || 'bg-slate-800/40'}
         p-6 flex flex-col gap-6 min-h-[420px]
       `}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${cfg.dot} ${report ? 'animate-pulse' : 'opacity-30'}`} />
+          <div className={`w-2 h-2 rounded-full ${cfg?.dot || 'bg-slate-400'} ${report ? 'animate-pulse' : 'opacity-30'}`} />
           <h2 className="text-xs uppercase tracking-widest font-mono text-slate-400">
             Forensic Verdict
           </h2>
         </div>
         {report && (
           <div className="flex gap-2">
-            <span className={`text-xs font-mono px-2.5 py-1 rounded-lg border ${cfg.badgeBg} ${cfg.colorClass}`}>
+            <span className={`text-xs font-mono px-2.5 py-1 rounded-lg border ${cfg?.badgeBg || ''} ${cfg?.colorClass || 'text-slate-400'}`}>
               L1 · nanoCore
             </span>
             {report.signatureStatus === 'Verified' && (
@@ -127,17 +174,23 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
           </>
         ) : report ? (
           <>
-            <p className={`text-3xl font-bold tracking-tight ${cfg.colorClass}`}>
-              {cfg.label}
+            <p className={`text-3xl font-bold tracking-tight ${cfg?.colorClass || 'text-slate-400'}`}>
+              {cfg?.label || 'Unverified'}
             </p>
             <p className="text-sm text-slate-500 font-mono flex items-center gap-2">
               Confidence: <span className="text-slate-300">{report.confidence}%</span>
               &nbsp;·&nbsp;
               {report.analyzedAt.toLocaleTimeString()}
               {isAnalyzing && (
-                <span className="ml-2 flex items-center gap-1 text-cyan-400 animate-pulse">
+                <span className="ml-2 flex flex-row items-center gap-1 text-cyan-400 animate-pulse">
                   <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full" />
                   Thinking...
+                </span>
+              )}
+              {isAnalyzing && report?.currentModel?.includes('Live') && (
+                <span className="ml-2 flex flex-row items-center gap-1.5 text-xs font-mono text-emerald-400">
+                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse" />
+                  Live Stream Active
                 </span>
               )}
               {report.currentModel && (
@@ -152,12 +205,11 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
             </p>
 
             {/* Streaming Reasoning Console */}
-            {report.explanationFragments && report.explanationFragments.length > 0 && (
-              <div className="mt-4 p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 max-h-40 overflow-y-auto font-mono text-xs text-slate-400">
-                {report.explanationFragments.map((frag, idx) => (
-                  <div key={idx} className="mb-1">{`> ${frag}`}</div>
-                ))}
-                {isAnalyzing && <div className="animate-pulse">_</div>}
+            {(displayedText.length > 0 || (report.explanationFragments && report.explanationFragments.length > 0)) && (
+              <div className="mt-4 p-3 rounded-lg bg-slate-900/50 border border-slate-800/80 max-h-40 overflow-y-auto font-mono text-xs text-slate-400 whitespace-pre-wrap">
+                <div className="mb-1">{`> ${displayedText}`}
+                  {isAnalyzing && <span className="animate-pulse inline-block ml-1 text-cyan-200">_</span>}
+                </div>
               </div>
             )}
           </>
@@ -172,7 +224,7 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
           <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Overall Confidence</span>
           <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-1000 ease-out ${cfg.barClass}`}
+              className={`h-full rounded-full transition-all duration-1000 ease-out ${cfg?.barClass || 'bg-slate-400'}`}
               style={{ width: `${report.confidence}%` }}
             />
           </div>
@@ -193,10 +245,10 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
           </>
         ) : (
           <>
-            <SignalBar label="Spectral Anomaly" value={report.signals.spectralAnomaly} barClass={cfg.barClass} />
-            <SignalBar label="Metadata Trust" value={report.signals.metadataTrust} barClass={cfg.barClass} />
-            <SignalBar label="Noise Consistency" value={report.signals.noiseConsistency} barClass={cfg.barClass} />
-            <SignalBar label="Compression Artifact" value={report.signals.compressionArtifact} barClass={cfg.barClass} />
+            <SignalBar label="Spectral Anomaly" value={report.signals?.spectralAnomaly || 0} barClass={cfg?.barClass || 'bg-slate-400'} />
+            <SignalBar label="Metadata Trust" value={report.signals?.metadataTrust || 0} barClass={cfg?.barClass || 'bg-slate-400'} />
+            <SignalBar label="Noise Consistency" value={report.signals?.noiseConsistency || 0} barClass={cfg?.barClass || 'bg-slate-400'} />
+            <SignalBar label="Compression Artifact" value={report.signals?.compressionArtifact || 0} barClass={cfg?.barClass || 'bg-slate-400'} />
           </>
         )}
       </div>

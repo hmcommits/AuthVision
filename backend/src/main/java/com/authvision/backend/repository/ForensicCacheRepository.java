@@ -10,6 +10,10 @@ import java.util.List;
 @Repository
 public interface ForensicCacheRepository extends MongoRepository<ForensicCache, String> {
 
-    @Aggregation(pipeline = {"{ $vectorSearch: { queryVector: ?0, path: 'vectorEmbedding', numCandidates: 100, limit: 1 } }"})
+    @Aggregation(pipeline = {
+        "{ $vectorSearch: { index: 'forensic_vector_index', path: 'vectorEmbedding', queryVector: ?0, numCandidates: 100, limit: 1 } }",
+        "{ $set: { score: { $meta: 'vectorSearchScore' } } }",
+        "{ $match: { score: { $gte: ?1 } } }"
+    })
     List<ForensicCache> findSimilarFakes(List<Double> embedding, double minScore);
 }

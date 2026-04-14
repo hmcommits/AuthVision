@@ -1,43 +1,21 @@
-# Node.js
+# Dependencies
 node_modules/
-dist/
-dist-ssr/
-*.local
-
-# Maven
 target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
-.mvn/wrapper/maven-wrapper.jar
+.mvn/
 
-# IntelliJ
-.idea/
-*.iml
-*.iws
+# Secrets
+.env
+.env.local
+.env.development
+.env.test
+.env.production
 
-# Eclipse
-.classpath
-.project
-.settings/
-.metadata/
-
-# VS Code
-.vscode/
-
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# OS Files
+# OS Items
 .DS_Store
 Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.iml
