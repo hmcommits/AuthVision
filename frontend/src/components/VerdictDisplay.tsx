@@ -196,27 +196,6 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
                 </span>
               )}
             </p>
-
-            {/* Audited-by badge — shown as soon as MODEL_SWITCHED fires, regardless of reasoning */}
-            {report.currentModel && (
-              <span className={`self-start mt-1 px-2 py-0.5 rounded text-xs border tracking-wider ${
-                report.currentModel.includes('Gemini') ? 'border-blue-500/40 text-blue-400 bg-blue-900/40 shadow-[0_0_8px_rgba(59,130,246,0.2)]' :
-                report.currentModel.includes('Claude') ? 'border-purple-500/40 text-purple-400 bg-purple-900/40 shadow-[0_0_8px_rgba(168,85,247,0.2)]' :
-                'border-green-500/40 text-green-400 bg-green-900/40 shadow-[0_0_8px_rgba(34,197,94,0.2)]'
-              }`}>
-                Audited by {report.currentModel}
-              </span>
-            )}
-
-            {/* Live streaming console — shows Gemini tokens as they arrive */}
-            {isAnalyzing && displayedText.length > 0 && (
-              <div className="mt-3 p-3 rounded-lg bg-slate-900/60 border border-slate-800/80 max-h-32 overflow-y-auto">
-                <p className="font-sans text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
-                  {displayedText}
-                  <span className="animate-pulse inline-block ml-0.5 text-cyan-300">|</span>
-                </p>
-              </div>
-            )}
           </>
         ) : (
           <p className="text-2xl font-bold text-slate-600">Awaiting Input</p>
@@ -266,19 +245,29 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
       )}
 
       {/* ── Gemini Reasoning Console ── always rendered once Gemini was invoked ── */}
-      {report && !isAnalyzing && report.currentModel && (
+      {report && report.currentModel && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs uppercase tracking-widest font-mono text-slate-500 flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${cfg?.dot || 'bg-slate-400'}`} />
-            Gemini Reasoning
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs uppercase tracking-widest font-mono text-slate-500 flex items-center gap-2">
+              <span className={`w-1.5 h-1.5 rounded-full ${cfg?.dot || 'bg-slate-400'} ${isAnalyzing ? 'animate-pulse' : ''}`} />
+              AI Reasoning
+            </h3>
+            {/* Audited-by badge — docked securely to the reasoning console header */}
+            <span className={`px-2 py-0.5 rounded text-xs border tracking-wider ${
+              report.currentModel.includes('Gemini') ? 'border-blue-500/40 text-blue-400 bg-blue-900/40 shadow-[0_0_8px_rgba(59,130,246,0.2)]' :
+              report.currentModel.includes('Claude') ? 'border-purple-500/40 text-purple-400 bg-purple-900/40 shadow-[0_0_8px_rgba(168,85,247,0.2)]' :
+              'border-green-500/40 text-green-400 bg-green-900/40 shadow-[0_0_8px_rgba(34,197,94,0.2)]'
+            }`}>
+              Audited by {report.currentModel}
+            </span>
+          </div>
           <div
             id="gemini-reasoning-console"
             className="p-4 rounded-xl bg-slate-900/70 border border-slate-700/60 max-h-52 overflow-y-auto"
           >
             {/* Case 1: Gemini API error (bad key, quota, etc.) */}
             {report.geminiError && (
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 animate-in fade-in zoom-in duration-300">
                 <span className="text-red-400 text-xs font-mono mt-0.5">⚠</span>
                 <div>
                   <p className="text-xs font-mono text-red-400 mb-1">Gemini API Error</p>
@@ -288,20 +277,28 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
               </div>
             )}
 
-            {/* Case 2: Reasoning text received — render as clean prose */}
+            {/* Case 2: Reasoning text streaming or completed — render as prose */}
             {!report.geminiError && displayedText.length > 0 && (
-              displayedText.split('\n').filter(Boolean).map((para, i) => (
-                <p key={i} className="text-sm text-slate-200 leading-relaxed mb-2 last:mb-0 font-sans">
-                  {para}
-                </p>
-              ))
+              <div className="animate-in fade-in duration-500">
+                {displayedText.split('\n').filter(Boolean).map((para, i) => (
+                  <p key={i} className="text-sm text-slate-200 leading-relaxed mb-2 last:mb-0 font-sans">
+                    {para}
+                    {isAnalyzing && i === displayedText.split('\n').filter(Boolean).length - 1 && (
+                      <span className="animate-pulse inline-block ml-1 text-cyan-400">|</span>
+                    )}
+                  </p>
+                ))}
+              </div>
             )}
 
-            {/* Case 3: Gemini was invoked but returned nothing and no error was surfaced */}
+            {/* Case 3: Gemini was invoked but returned nothing yet (Streaming init phase) */}
             {!report.geminiError && displayedText.length === 0 && (
-              <p className="text-sm text-slate-500 italic font-sans">
-                No reasoning text received from {report.currentModel}. The model may have timed out or returned an empty response.
-              </p>
+              <div className="flex items-center gap-3 animate-pulse">
+                <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full" />
+                <p className="text-sm text-slate-500 italic font-sans flex items-center gap-2">
+                  Awaiting semantic stream from {report.currentModel}...
+                </p>
+              </div>
             )}
           </div>
         </div>

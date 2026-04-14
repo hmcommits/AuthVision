@@ -76,8 +76,8 @@ public class ForensicController {
             return semanticEmitter;
         }
 
-        // Establish an 8.5-second streaming connection
-        SseEmitter emitter = new SseEmitter(8500L);
+        // Establish a 60-second streaming connection to allow deep audits to complete
+        SseEmitter emitter = new SseEmitter(60000L);
 
         try {
             emitter.send(SseEmitter.event().name("START").data("Starting Parallel Orchestrator with Hints (" + peakX + ", " + peakY + ")"));

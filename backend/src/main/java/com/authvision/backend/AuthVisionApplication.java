@@ -10,16 +10,14 @@ import io.github.cdimascio.dotenv.Dotenv;
 public class AuthVisionApplication {
     public static void main(String[] args) {
         try {
-            Dotenv dotenv = Dotenv.configure()
-                    .directory("..")
-                    .ignoreIfMissing()
-                    .load();
-            
-            dotenv.entries().forEach(entry -> {
-                System.setProperty(entry.getKey(), entry.getValue());
-            });
+            // Load from both parent directory (if run from backend/) and current directory
+            Dotenv dotenvParent = Dotenv.configure().directory("..").ignoreIfMissing().load();
+            dotenvParent.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
+
+            Dotenv dotenvCurrent = Dotenv.configure().directory(".").ignoreIfMissing().load();
+            dotenvCurrent.entries().forEach(entry -> System.setProperty(entry.getKey(), entry.getValue()));
         } catch (Exception e) {
-            System.err.println("Warning: Could not load .env file from parent directory: " + e.getMessage());
+            System.err.println("Warning: Could not load .env files: " + e.getMessage());
         }
 
         SpringApplication.run(AuthVisionApplication.class, args);
