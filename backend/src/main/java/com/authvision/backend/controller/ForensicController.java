@@ -56,7 +56,10 @@ public class ForensicController {
             }
         }
 
-        byte[] mockUploadedBytes = new byte[2048];
+        // Provide a valid 1x1 PNG mock instead of empty zeroes to prevent Gemini 400 Bad Request errors
+        byte[] mockUploadedBytes = java.util.Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        );
 
         // Semantic Vector Search Memory Check
         List<Double> currentEmbedding = deepForensicService.generateEmbedding(mockUploadedBytes);

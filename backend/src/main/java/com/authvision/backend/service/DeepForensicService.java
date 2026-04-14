@@ -31,18 +31,22 @@ public class DeepForensicService {
     private String geminiApiKey;
 
     // Direct binding for standard streaming completion APIs matching Google AI paradigms
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:streamGenerateContent?alt=sse&key=";
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=";
 
     @Async
     public CompletableFuture<Void> conductDeepAudit(byte[] image, ForensicHints hints, SignatureShieldData sigData, SseEmitter emitter, String pHash) {
         String prompt = buildPrompt(hints, sigData);
         
         try {
-            emitter.send(SseEmitter.event().name("MODEL_SWITCHED").data("Gemini 3.1 Pro (Live)"));
+            emitter.send(SseEmitter.event().name("MODEL_SWITCHED").data("Gemini 2.5 Flash (Live)"));
 
             HttpClient client = HttpClient.newHttpClient();
+            String base64Image = java.util.Base64.getEncoder().encodeToString(image).replaceAll("\\s", "");
             String payload = "{" +
-                "\"contents\": [{\"parts\":[{\"text\": \"" + prompt.replace("\"", "\\\"") + "\"}]}]," +
+                "\"contents\": [{\"parts\":[" +
+                    "{\"text\": \"" + prompt.replace("\"", "\\\"") + "\"}," +
+                    "{\"inline_data\": {\"mime_type\": \"image/png\", \"data\": \"" + base64Image + "\"}}" +
+                "]}]," +
                 "\"generationConfig\": {\"maxOutputTokens\": 250, \"temperature\": 0.2}" +
             "}";
 
@@ -57,6 +61,18 @@ public class DeepForensicService {
             StringBuilder fullReasoningText = new StringBuilder();
 
             client.sendAsync(request, HttpResponse.BodyHandlers.ofLines()).thenAccept(response -> {
+                if (response.statusCode() != 200) {
+                    String errBody = response.body().collect(java.util.stream.Collectors.joining("\n"));
+                    try {
+                        JsonNode root = objectMapper.readTree(errBody);
+                        String errMsg = root.path("error").path("message").asText(errBody);
+                        System.err.printf("[Gemini] API HTTP %d: %s%n", response.statusCode(), errMsg);
+                        emitter.send(SseEmitter.event().name("GEMINI_ERROR").data(errMsg));
+                        emitter.complete();
+                    } catch (Exception e) {}
+                    return;
+                }
+
                 List<String> rawLines = new ArrayList<>();
                 response.body().forEach(line -> {
                     rawLines.add(line);
@@ -142,7 +158,14 @@ public class DeepForensicService {
                     emitter.send(SseEmitter.event().name("DONE").data(donePayload));
                     emitter.complete();
                 } catch (Exception e) {}
-            }).join();
+            }).exceptionally(ex -> {
+                System.err.printf("[DeepForensicService] Network stream failed: %s%n", ex.getMessage());
+                try {
+                    emitter.send(SseEmitter.event().name("ERROR").data("Network stream breakdown: " + ex.getMessage()));
+                    emitter.complete();
+                } catch (Exception emitEx) {}
+                return null;
+            });
 
             return CompletableFuture.completedFuture(null);
 

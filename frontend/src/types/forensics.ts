@@ -1,9 +1,11 @@
-export enum VerdictStatus {
-  VERIFIED = 'VERIFIED',
-  SUSPICIOUS = 'SUSPICIOUS',
-  UNVERIFIED = 'UNVERIFIED',
-  SIGNATURE_MATCH = 'SIGNATURE_MATCH',
-}
+export const VerdictStatus = {
+  VERIFIED: 'VERIFIED',
+  SUSPICIOUS: 'SUSPICIOUS',
+  UNVERIFIED: 'UNVERIFIED',
+  SIGNATURE_MATCH: 'SIGNATURE_MATCH',
+} as const;
+
+export type VerdictStatus = typeof VerdictStatus[keyof typeof VerdictStatus];
 
 export interface SignalData {
   spectralAnomaly: number; // 0–1 confidence score

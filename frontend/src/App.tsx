@@ -86,7 +86,14 @@ export default function App() {
 
       eventSource.addEventListener('FAST_PASS', (msg) => {
           const cache = JSON.parse(msg.data);
-          setReport(prev => prev ? { ...prev, verdict: cache.verdict, confidence: cache.confidence, streamMessage: 'Loaded from Edge Cache' } : null);
+          setReport(prev => prev ? { 
+              ...prev, 
+              verdict: cache.verdict, 
+              confidence: cache.confidence, 
+              streamMessage: 'Loaded from Edge Cache',
+              reasoningStream: cache.explanationFragments || [],
+              currentModel: 'Edge Cache (Historical)'
+          } : null);
           eventSource.close();
           setIsAnalyzing(false);
       });
@@ -100,7 +107,8 @@ export default function App() {
               // Cache hit: explanationFragments stays as L1 log; reasoning goes into reasoningStream
               reasoningStream: cache.explanationFragments || [],
               streamMessage: 'Match via Visual Vector Cache',
-              isVectorHit: true 
+              isVectorHit: true,
+              currentModel: 'Vector Cache (Historical)'
           } : null);
           eventSource.close();
           setIsAnalyzing(false);

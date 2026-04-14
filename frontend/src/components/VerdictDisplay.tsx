@@ -90,37 +90,16 @@ export default function VerdictDisplay({ report, isAnalyzing }: VerdictDisplayPr
 
 
   useEffect(() => {
-    // Drive the typewriter from reasoningStream (Gemini L2 semantic text only)
+    // Render tokens exactly as they arrive from the SSE stream. 
+    // The "typewriter" flow natively emerges from the network cadence, removing UI stuttering.
     const fragments = report?.reasoningStream;
     if (!fragments || fragments.length === 0) {
       setDisplayedText('');
       return;
     }
 
-    // For vector cache hits or when streaming is done, show full text immediately
-    if (!isAnalyzing || report?.isVectorHit) {
-      setDisplayedText(fragments.join(''));
-      return;
-    }
-
-    const fullText = fragments.join('');
-
-    if (fullText.length <= displayedText.length) {
-      if (fullText.length < displayedText.length) setDisplayedText(fullText);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setDisplayedText(prev => {
-        if (prev.length < fullText.length) {
-          return prev + fullText.charAt(prev.length);
-        }
-        return prev;
-      });
-    }, 15);
-
-    return () => clearInterval(interval);
-  }, [report?.reasoningStream, isAnalyzing, report?.isVectorHit, displayedText.length]);
+    setDisplayedText(fragments.join(''));
+  }, [report?.reasoningStream]);
 
   // Idle state: no report and not currently analyzing — render as conditional JSX
   if (!report && !isAnalyzing) {
